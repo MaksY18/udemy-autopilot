@@ -418,8 +418,21 @@ async function checkVideoProgress(page) {
       });
     }
   } else {
-    log("⚠️  Pas de <video> trouvé sur la page");
-    await takeScreenshot(page, "no-video");
+    // Pas de vidéo → leçon texte, doc ou quiz → cliquer "suivant"
+    log("⚠️  Pas de <video> — leçon texte/doc/quiz, passage à la suivante...");
+    await page.evaluate(() => {
+      // Bouton flèche droite "Go to next item"
+      const nextBtn = document.querySelector(
+        '[data-purpose="go-to-next"], [aria-label*="next" i], [aria-label*="suivant" i], ' +
+        'button[class*="next"], a[class*="next"]'
+      );
+      if (nextBtn) nextBtn.click();
+    });
+    await sleep(3000);
+    await takeScreenshot(page, "skipped-lesson");
+
+    // Après skip, tenter de lancer la vidéo si y'en a une maintenant
+    await forcePlayVideo(page);
   }
 }
 
