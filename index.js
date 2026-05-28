@@ -357,18 +357,19 @@ async function forcePlayVideo(page) {
   log("✅ Vidéo lancée. L'autoplay Udemy fera le reste.");
 }
 
-// Détecter si le cours est terminé (plus de vidéo, ou page de complétion)
+// Détecter si le cours est terminé
 async function isCourseFinished(page) {
-  return await page.evaluate(() => {
-    // Pas de <video> sur la page = probablement fini ou sur un écran de fin
-    const video = document.querySelector("video");
-    if (!video) return true;
-
-    // Chercher des indicateurs de complétion
-    const completionTexts = ["congratulations", "félicitations", "course complete", "cours terminé"];
-    const bodyText = document.body.innerText.toLowerCase();
-    return completionTexts.some((t) => bodyText.includes(t));
-  });
+  const url = page.url();
+  // Si on est toujours sur une page /learn/ → le cours est en cours
+  if (url.includes("/learn/")) {
+    const hasVideo = await page.evaluate(() => !!document.querySelector("video"));
+    // Même sans <video> temporairement (transition), on reste sur le cours
+    if (hasVideo) return false;
+    // Pas de vidéo mais toujours sur /learn/ → transition, pas fini
+    return false;
+  }
+  // Si l'URL ne contient plus /learn/ → on a quitté le cours
+  return true;
 }
 
 async function dismissPopups(page) {
@@ -526,7 +527,7 @@ async function checkVideoProgress(page) {
       const finished = await isCourseFinished(page);
       if (finished) {
         noVideoCount++;
-        if (noVideoCount >= 3) {
+        if (noVideoCount >= 10) {
           currentCourseIndex++;
           if (currentCourseIndex < courseUrls.length) {
             log(`🎓 Cours terminé ! Passage au suivant (${currentCourseIndex + 1}/${courseUrls.length})...`);
