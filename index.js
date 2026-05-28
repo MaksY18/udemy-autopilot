@@ -97,7 +97,7 @@ function startMonitorServer() {
   <h2 style="font-size:16px;margin-bottom:8px">📸 Dernier screenshot</h2>
   <img src="/screenshot" alt="screenshot">
   <h2 style="font-size:16px;margin:12px 0 8px">📋 Logs récents</h2>
-  <div class="logs">${logBuffer.slice(-30).join("<br>")}</div>
+  <div class="logs">${logBuffer.slice(-30).map(l => l.replace(/</g, "&lt;").replace(/>/g, "&gt;")).join("<br>")}</div>
   <button class="refresh" onclick="location.reload()">🔄 Rafraîchir</button>
 </body></html>`);
   }).listen(MONITOR_PORT, () => {
@@ -166,8 +166,11 @@ async function takeScreenshot(page, label) {
   const file = path.join(SCREENSHOTS_DIR, `${label}-${Date.now()}.png`);
   await page.screenshot({ path: file });
   log(`📸 Screenshot: ${file}`);
-  // Garder uniquement les 20 derniers screenshots
-  const files = fs.readdirSync(SCREENSHOTS_DIR).sort();
+  // Garder uniquement les 20 derniers screenshots (triés par date)
+  const files = fs.readdirSync(SCREENSHOTS_DIR)
+    .map((f) => ({ name: f, time: fs.statSync(path.join(SCREENSHOTS_DIR, f)).mtimeMs }))
+    .sort((a, b) => a.time - b.time)
+    .map((f) => f.name);
   while (files.length > 20) {
     fs.unlinkSync(path.join(SCREENSHOTS_DIR, files.shift()));
   }
@@ -260,25 +263,30 @@ async function login(page, retries = 5) {
     await page.type(pwdSelector, process.env.UDEMY_PASSWORD, { delay: 80 });
     await sleep(1000);
 
-    // Clic sur "Se connecter" / "Log in"
-    log("➡️  Clic sur Se connecter...");
-    await page.evaluate(() => {
-      const buttons = [...document.querySelectorAll("button")];
-      const btn = buttons.find((b) =>
-        ["Se connecter", "Log in", "Sign in"].includes(b.textContent.trim())
-      );
-      if (btn) btn.click();
-    });
+    // Soumettre le formulaire avec Entrée (plus fiable que chercher le bouton)
+    log("➡️  Soumission du formulaire (Entrée)...");
+    try {
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "networkidle2", timeout: 30000 }),
+        page.keyboard.press("Enter"),
+      ]);
+    } catch (e) {
+      log("⚠️  Navigation post-login timeout, on vérifie quand même...");
+    }
 
-    log("⏳ Attente de la redirection post-login...");
-    await sleep(8000);
+    await sleep(5000);
     await takeScreenshot(page, "04-post-login");
 
-    // Vérifier qu'on est connecté
+    // Vérifier qu'on est connecté : le formulaire de login a disparu ?
+    const stillOnLogin = await page.evaluate(() => {
+      return !!document.querySelector('input[name="email"], input[type="email"], input[name="password"]');
+    });
+
     const url = page.url();
-    log(`📍 URL actuelle: ${url}`);
-    if (url.includes("login") || url.includes("signin")) {
-      log("⚠️  Login échoué, retry...");
+    log(`📍 URL actuelle: ${url} | Formulaire login visible: ${stillOnLogin}`);
+
+    if (stillOnLogin) {
+      log("⚠️  Login échoué (formulaire encore visible), retry...");
       continue;
     }
 
@@ -295,6 +303,24 @@ async function startCourse(page, courseUrl) {
   await page.goto(courseUrl, { waitUntil: "networkidle2", timeout: 60000 });
   await sleep(5000);
   await takeScreenshot(page, "05-course-page");
+
+  // Vérifier si on a été redirigé vers le login
+  const redirectedToLogin = await page.evaluate(() => {
+    return !!document.querySelector('input[name="email"], input[type="email"]');
+  });
+
+  if (redirectedToLogin) {
+    log("⚠️  Session expirée, re-login nécessaire...");
+    const loggedIn = await login(page);
+    if (!loggedIn) {
+      log("❌ Re-login échoué.");
+      return;
+    }
+    // Re-naviguer vers le cours après re-login
+    await page.goto(courseUrl, { waitUntil: "networkidle2", timeout: 60000 });
+    await sleep(5000);
+    await takeScreenshot(page, "05-course-page-retry");
+  }
 
   await forcePlayVideo(page);
 }
