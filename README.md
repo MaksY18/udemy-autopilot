@@ -21,8 +21,8 @@ Bot qui lance automatiquement les vidéos Udemy Business en arrière-plan sur un
 
 ```bash
 # Cloner le repo
-git clone https://github.com/<ton-user>/udemy-bot.git
-cd udemy-bot
+git clone https://github.com/MaksY18/udemy-autopilot.git
+cd udemy-autopilot
 
 # Configurer
 cp .env.example .env
@@ -84,6 +84,3 @@ Le dashboard affiche l'état du bot (actif/pause), le planning, le dernier scree
 - Node.js 20
 - PM2 (process manager)
 
-## Disclaimer
-
-Ce projet est fourni à titre éducatif. L'utilisation est à tes propres risques.
