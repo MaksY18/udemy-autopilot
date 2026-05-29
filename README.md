@@ -81,6 +81,6 @@ Le dashboard affiche l'état du bot (actif/pause), le planning, le dernier scree
 ## Stack
 
 - [Puppeteer](https://pptr.dev/) + [puppeteer-extra-plugin-stealth](https://github.com/berstend/puppeteer-extra/tree/master/packages/puppeteer-extra-plugin-stealth)
-- Node.js 20
+- Node.js
 - PM2 (process manager)
 
