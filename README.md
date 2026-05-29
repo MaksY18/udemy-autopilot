@@ -53,8 +53,8 @@ MONITOR_PORT=3000
 MONITOR_PASSWORD=un-mot-de-passe-solide
 
 # Cours à enchaîner (dans l'ordre)
-COURSE_URL_1=https://xxx.udemy.com/course/.../learn/lecture/...
-COURSE_URL_2=https://xxx.udemy.com/course/.../learn/lecture/...
+COURSE_URL_1=https://xxx.udemy.com/course/.../learn/
+COURSE_URL_2=https://xxx.udemy.com/course/.../learn/
 ```
 
 ## Monitoring
